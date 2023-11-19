@@ -79,12 +79,14 @@ if __name__=="__main__":
   # так же удали зависимости следующих 2 сервисов от меня
   airflow-initdb:
     image: "docker5300/marmot-hole"
+    container_name: airflow-initdb
     depends_on:
       - postgres
     entrypoint: airflow db init
 
   airflow-webserver:
     image: "docker5300/marmot-hole"
+    container_name: airflow-webserver
     restart: always
     depends_on:
       - postgres
@@ -99,6 +101,7 @@ if __name__=="__main__":
 
   airflow-scheduler:
     image: "docker5300/marmot-hole"
+    container_name: airflow-scheduler
     restart: always
     depends_on:
       - postgres
