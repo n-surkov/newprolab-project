@@ -15,6 +15,7 @@ version: "3"
 services:
   kafka:
     image: docker.io/bitnami/kafka:3.6
+    container_name: kafka
     ports:
       - "{config['KAFKA_PORT']}:{config['KAFKA_PORT']}"
     volumes:
@@ -31,12 +32,29 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
 
+  clickhouse-server:
+    image: yandex/clickhouse-server
+    container_name: clickhouse-server
+    ports:
+      - '18123:8123'
+      - '19000:9000'
+    volumes:
+      - ./db:/var/lib/clickhouse
+    ulimits:
+      nofile: 262144
+
 volumes:
   kafka_data:
     driver: local
     driver_opts:
       type: none
       device: {config['KAFKA_DATA']}
+      o: bind
+  clickhouse_db:
+    driver: local
+    driver_opts:
+      type: none
+      device: {config['CLICKHOUSE_DATA']}
       o: bind
 """
     
