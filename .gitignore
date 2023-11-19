@@ -1,2 +1,2 @@
-data/kafka/*
-data/postgres/*
+data/kafka_data/*
+data/postgres_data/*
