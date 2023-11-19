@@ -25,5 +25,5 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: data/kafka_data
+      device: data/kafka
       o: bind
