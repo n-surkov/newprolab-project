@@ -28,9 +28,54 @@ services:
       - '19000:9000'
     volumes:
       - clickhouse_db:/var/lib/clickhouse
-      - ./data/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+      - ./Clickhouse/config.xml:/etc/clickhouse-server/config.xml
     ulimits:
       nofile: 262144
+  postgres:
+    image: "postgres:14.2"
+    container_name: "postgres"
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - airflow_postgres_db:/var/lib/postgresql/data
+
+  # удали/закомментируй меня после первого запуска
+  # так же удали зависимости следующих 2 сервисов от меня
+  airflow-initdb:
+    image: "docker5300/marmot-hole"
+    depends_on:
+      - postgres
+    entrypoint: airflow db init
+
+  airflow-webserver:
+    image: "docker5300/marmot-hole"
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-initdb
+    volumes:
+      - airflow_dags:/usr/local/airflow/dags
+    ports:
+      - "8080:8080"
+    env_file:
+      - Airflow/airflow-variables.env
+    entrypoint: airflow webserver
+
+  airflow-scheduler:
+    image: "docker5300/marmot-hole"
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-initdb
+    volumes:
+      - airflow_dags:/usr/local/airflow/dags
+    env_file:
+      - Airflow/airflow-variables.env
+    entrypoint: airflow scheduler
 
 volumes:
   kafka_data:
@@ -44,4 +89,16 @@ volumes:
     driver_opts:
       type: none
       device: data/clickhouse/db
+      o: bind
+  airflow_postgres_db:
+    driver: local
+    driver_opts:
+      type: none
+      device: data/postgres_data
+      o: bind
+  airflow_dags:
+    driver: local
+    driver_opts:
+      type: none
+      device: Airflow/dags
       o: bind

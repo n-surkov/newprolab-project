@@ -29,6 +29,7 @@ if __name__=="__main__":
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
 """.strip()
+
     kafka_volumes = f"""
   kafka_data:
     driver: local
@@ -47,7 +48,7 @@ if __name__=="__main__":
       - '{config['CLICKHOUSE_CLIENT_PORT']}:9000'
     volumes:
       - clickhouse_db:/var/lib/clickhouse
-      - ./data/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+      - ./Clickhouse/config.xml:/etc/clickhouse-server/config.xml
     ulimits:
       nofile: 262144
 """.strip()
@@ -60,6 +61,69 @@ if __name__=="__main__":
       device: {config['CLICKHOUSE_DATA']}
       o: bind
 """.strip()
+    
+    airflow_service = f"""
+  postgres:
+    image: "postgres:14.2"
+    container_name: "postgres"
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - airflow_postgres_db:/var/lib/postgresql/data
+
+  # удали/закомментируй меня после первого запуска
+  # так же удали зависимости следующих 2 сервисов от меня
+  airflow-initdb:
+    image: "docker5300/marmot-hole"
+    depends_on:
+      - postgres
+    entrypoint: airflow db init
+
+  airflow-webserver:
+    image: "docker5300/marmot-hole"
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-initdb
+    volumes:
+      - airflow_dags:/usr/local/airflow/dags
+    ports:
+      - "{config['AIRFLOW_WEBSERVER_PORT']}:8080"
+    env_file:
+      - Airflow/airflow-variables.env
+    entrypoint: airflow webserver
+
+  airflow-scheduler:
+    image: "docker5300/marmot-hole"
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-initdb
+    volumes:
+      - airflow_dags:/usr/local/airflow/dags
+    env_file:
+      - Airflow/airflow-variables.env
+    entrypoint: airflow scheduler
+""".strip()
+    
+    airflow_volumes = f"""
+  airflow_postgres_db:
+    driver: local
+    driver_opts:
+      type: none
+      device: {config['AIRFLOW_DATABASE']}
+      o: bind
+  airflow_dags:
+    driver: local
+    driver_opts:
+      type: none
+      device: {config['AIRFLOW_DAGS']}
+      o: bind
+""".strip()
 
     docker_compose = f"""
 version: "3"
@@ -67,10 +131,12 @@ version: "3"
 services:
   {kafka_service if config['USE_EXTERNAL_KAFKA'] == 'NO' else ''}
   {clickhouse_service if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO' else ''}
+  {airflow_service if config['USE_EXTERNAL_AIRFLOW'] == 'NO' else ''}
 
 volumes:
   {kafka_volumes if config['USE_EXTERNAL_KAFKA'] == 'NO' else ''}
   {clickhouse_volumes if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO' else ''}
+  {airflow_volumes if config['USE_EXTERNAL_AIRFLOW'] == 'NO' else ''}
 """
     
     with open('./docker-compose.yml', 'w') as fo:
