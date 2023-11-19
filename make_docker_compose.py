@@ -36,8 +36,8 @@ services:
     image: yandex/clickhouse-server
     container_name: clickhouse-server
     ports:
-      - '18123:8123'
-      - '19000:9000'
+      - '{config['CLICKHOUSE_OUT_PORT']}:8123'
+      - '{config['CLICKHOUSE_CLIENT_PORT']}:9000'
     volumes:
       - clickhouse_db:/var/lib/clickhouse
       - ./data/clickhouse/config.xml:/etc/clickhouse-server/config.xml
