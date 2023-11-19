@@ -39,7 +39,8 @@ services:
       - '18123:8123'
       - '19000:9000'
     volumes:
-      - ./db:/var/lib/clickhouse
+      - clickhouse_db:/var/lib/clickhouse
+      - ./data/clickhouse/config.xml:/etc/clickhouse-server/config.xml
     ulimits:
       nofile: 262144
 
