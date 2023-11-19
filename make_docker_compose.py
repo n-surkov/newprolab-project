@@ -9,10 +9,7 @@ if __name__=="__main__":
     
     print(config)
 
-    docker_compose = f"""
-version: "3"
-
-services:
+    kafka_service = f"""
   kafka:
     image: docker.io/bitnami/kafka:3.6
     container_name: kafka
@@ -31,7 +28,17 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,CONNECTIONS_FROM_HOST:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-
+""".strip()
+    kafka_volumes = f"""
+  kafka_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: {config['KAFKA_DATA']}
+      o: bind
+""".strip()
+    
+    clickhouse_service = f"""
   clickhouse-server:
     image: yandex/clickhouse-server
     container_name: clickhouse-server
@@ -43,20 +50,27 @@ services:
       - ./data/clickhouse/config.xml:/etc/clickhouse-server/config.xml
     ulimits:
       nofile: 262144
-
-volumes:
-  kafka_data:
-    driver: local
-    driver_opts:
-      type: none
-      device: {config['KAFKA_DATA']}
-      o: bind
+""".strip()
+    
+    clickhouse_volumes = f"""
   clickhouse_db:
     driver: local
     driver_opts:
       type: none
       device: {config['CLICKHOUSE_DATA']}
       o: bind
+""".strip()
+
+    docker_compose = f"""
+version: "3"
+
+services:
+  {kafka_service if config['USE_EXTERNAL_KAFKA'] == 'NO' else ''}
+  {clickhouse_service if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO' else ''}
+
+volumes:
+  {kafka_volumes if config['USE_EXTERNAL_KAFKA'] == 'NO' else ''}
+  {clickhouse_volumes if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO' else ''}
 """
     
     with open('./docker-compose.yml', 'w') as fo:
