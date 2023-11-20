@@ -12,6 +12,11 @@ def parse_parameters(filename='./env.conf'):
             if line != '':
                 key, val = line.split('=')
                 config[key] = val
+    
+    if config['USE_EXTERNAL_KAFKA'] == 'NO':
+        config['KAFKA_HOST'] = config['HOST']
+    if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO':
+        config['CLICKHOUSE_HOST'] = config['HOST']
     return config
 
 if __name__=="__main__":
