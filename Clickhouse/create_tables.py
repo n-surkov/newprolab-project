@@ -22,9 +22,9 @@ def parse_parameters(filename='./env.conf'):
     return config
 
 def create_table(client, table_name, columns_types, time_col=None, topic=''):
-    client.execute(f"DROP IF EXISTS TABLE {table_name}")
-    client.execute(f"DROP IF EXISTS TABLE {table_name}_in")
-    client.execute(f"DROP IF EXISTS TABLE {table_name}_mv")
+    client.execute(f"DROP TABLE IF EXISTS {table_name}")
+    client.execute(f"DROP TABLE IF EXISTS {table_name}_in")
+    client.execute(f"DROP TABLE IF EXISTS {table_name}_mv")
 
     dtypes = ''
     for col, t in columns_types:
@@ -78,8 +78,7 @@ FROM {table_name}_in;
 if __name__=="__main__":
     config = parse_parameters(CONFIG_PATH)
 
-    cclient = click_client(host=config['CLICKHOUSE_HOST'], port=config['CLICKHOUSE_PORT'], settings={'use_numpy': True})
-    cclient=None
+    cclient = click_client(host=config['CLICKHOUSE_HOST'], port=config['CLICKHOUSE_CLIENT_PORT'], settings={'use_numpy': True})
 
     # browser_events
     dtypes = [
@@ -130,4 +129,4 @@ if __name__=="__main__":
         ('utm_content', 'String'),
         ('utm_campaign', 'String'),
     ]
-    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, topic=config['GEO_EVENTS_TOPIC'])
+    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, topic=config['LOCATION_EVENTS_TOPIC'])
