@@ -21,7 +21,7 @@ def parse_parameters(filename='./env.conf'):
         config['CLICKHOUSE_HOST'] = config['HOST']
     return config
 
-def create_table(client, table_name, columns_types, time_col=None, topic=None):
+def create_table(client, table_name, columns_types, time_col=None, topic=''):
     client.execute(f"DROP IF EXISTS TABLE {table_name}")
     client.execute(f"DROP IF EXISTS TABLE {table_name}_in")
     client.execute(f"DROP IF EXISTS TABLE {table_name}_mv")
@@ -49,7 +49,7 @@ CREATE TABLE {table_name}
     print(query)
     client.execute(query)
 
-    if topic is not None:
+    if topic != '':
         # Создаём таблицу кафки
         query = f"""
 CREATE TABLE {table_name}_in
