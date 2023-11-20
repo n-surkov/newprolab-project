@@ -97,7 +97,7 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: data/postgres_data
+      device: data/postgres_data/db
       o: bind
   airflow_dags:
     driver: local

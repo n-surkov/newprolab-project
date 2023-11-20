@@ -5,10 +5,15 @@ Final project for NewProLab DE course
 
 1. Перед запуском нужно раздать права на директории
 
+Постгрес особенный, он не переваривает непустые директории
+```bash
+mkdir data/postgres_data/db
+```
+
 ```bash
 sudo chown -R 1001:1001 data/kafka_data
 sudo chown -R 1001:1001 data/clickhouse/db
-sudo chown -R 1001:1001 data/postgres_data
+sudo chown -R 1001:1001 data/postgres_data/db
 ```
 
 2. Затем запускаем сами сервисы
