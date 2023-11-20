@@ -119,7 +119,7 @@ if __name__=="__main__":
 
     # location_events
     dtypes = [
-        ('click_id', 'String'),
+        ('event_id', 'String'),
         ('page_url', 'String'),
         ('page_url_path', 'String'),
         ('referer_url', 'String'),
