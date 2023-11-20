@@ -1,12 +1,21 @@
 import os
 
-if __name__=="__main__":
+def parse_parameters(filename='./env.conf'):
     config = dict()
-    with open('./env.conf', 'r') as fo:
+    with open(filename, 'r') as fo:
         for line in fo.readlines():
-            key, val = line.strip().split('=')
-            config[key] = val
-    
+            comment_start = line.find('#')
+            if comment_start == -1:
+                line = line.strip()
+            else:
+                line = line[:comment_start].strip()
+            if line != '':
+                key, val = line.split('=')
+                config[key] = val
+    return config
+
+if __name__=="__main__":
+    config = parse_parameters()
     print(config)
 
     kafka_service = f"""
