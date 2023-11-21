@@ -74,10 +74,10 @@ services:
       - airflow-initdb
     volumes:
       - airflow_dags:/usr/local/airflow/dags
+      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
     ports:
       - "8080:8080"
     env_file:
-      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - Airflow/airflow-variables.env
     entrypoint: airflow webserver
 

@@ -120,10 +120,10 @@ if __name__=="__main__":
       - airflow-initdb
     volumes:
       - airflow_dags:/usr/local/airflow/dags
+      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
     ports:
       - "{config['AIRFLOW_WEBSERVER_PORT']}:8080"
     env_file:
-      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - Airflow/airflow-variables.env
     entrypoint: airflow webserver
 
