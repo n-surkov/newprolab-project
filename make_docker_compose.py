@@ -96,6 +96,8 @@ if __name__=="__main__":
     container_name: airflow-initdb
     depends_on:
       - postgres
+    volumes:
+      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
     entrypoint: /bin/bash
     command:
       - -c
@@ -121,6 +123,7 @@ if __name__=="__main__":
     ports:
       - "{config['AIRFLOW_WEBSERVER_PORT']}:8080"
     env_file:
+      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - Airflow/airflow-variables.env
     entrypoint: airflow webserver
 
@@ -132,6 +135,7 @@ if __name__=="__main__":
       - postgres
       - airflow-initdb
     volumes:
+      - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - airflow_dags:/usr/local/airflow/dags
     env_file:
       - Airflow/airflow-variables.env
