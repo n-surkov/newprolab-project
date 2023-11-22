@@ -1,6 +1,6 @@
 FROM python:3.8.13
 
-COPY requirements.txt /app
+COPY requirements.txt /app/requirements.txt
 
 RUN pip install --user -r /app/requirements.txt
 
