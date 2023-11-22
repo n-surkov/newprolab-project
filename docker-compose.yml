@@ -75,6 +75,7 @@ services:
     volumes:
       - airflow_dags:/usr/local/airflow/dags
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
+      - share_drive:/app/share
     ports:
       - "8080:8080"
     env_file:
@@ -91,6 +92,7 @@ services:
     volumes:
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - airflow_dags:/usr/local/airflow/dags
+      - share_drive:/app/share
     env_file:
       - Airflow/airflow-variables.env
     entrypoint: airflow scheduler
@@ -119,4 +121,10 @@ volumes:
     driver_opts:
       type: none
       device: Airflow/dags
+      o: bind
+  share_drive:
+    driver: local
+    driver_opts:
+      type: none
+      device: data/share
       o: bind

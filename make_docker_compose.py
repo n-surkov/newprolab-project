@@ -1,6 +1,10 @@
 import os
+PROJECT_PATH = os.path.join(os.path.dirname(__file__))
+DOCKER_COMPOSE_PATH = os.path.join(PROJECT_PATH, 'docker-compose.yml')
+ENV_PATH = os.path.join(PROJECT_PATH, 'env.conf')
+AIRFLOW_ENV_PATH = os.path.join(PROJECT_PATH, 'Airflow', 'airflow-variables.env')
 
-def parse_parameters(filename='./env.conf'):
+def parse_parameters(filename=ENV_PATH):
     config = dict()
     with open(filename, 'r') as fo:
         for line in fo.readlines():
@@ -20,9 +24,11 @@ def parse_parameters(filename='./env.conf'):
     return config
 
 if __name__=="__main__":
+    # Парсим параметры
     config = parse_parameters()
     print(config)
 
+    # Собираем docker-compose.yml
     kafka_service = f"""
   kafka:
     image: docker.io/bitnami/kafka:3.6
@@ -121,6 +127,7 @@ if __name__=="__main__":
     volumes:
       - airflow_dags:/usr/local/airflow/dags
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
+      - share_drive:/app/share
     ports:
       - "{config['AIRFLOW_WEBSERVER_PORT']}:8080"
     env_file:
@@ -137,6 +144,7 @@ if __name__=="__main__":
     volumes:
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - airflow_dags:/usr/local/airflow/dags
+      - share_drive:/app/share
     env_file:
       - Airflow/airflow-variables.env
     entrypoint: airflow scheduler
@@ -155,6 +163,12 @@ if __name__=="__main__":
       type: none
       device: {config['AIRFLOW_DAGS']}
       o: bind
+  share_drive:
+    driver: local
+    driver_opts:
+      type: none
+      device: {config['AIRFLOW_SHARE']}
+      o: bind
 """.strip()
 
     docker_compose = f"""
@@ -171,5 +185,13 @@ volumes:
   {airflow_volumes if config['USE_EXTERNAL_AIRFLOW'] == 'NO' else ''}
 """
     
-    with open('./docker-compose.yml', 'w') as fo:
+    with open(DOCKER_COMPOSE_PATH, 'w') as fo:
         fo.write(docker_compose)
+
+    # Обновляем параметры среды Airflow
+    envireonment = ''
+    for key, val in config.items():
+        envireonment += f'{key}={val}\n'
+
+    with open(AIRFLOW_ENV_PATH, 'w') as fo:
+        fo.write(envireonment)
