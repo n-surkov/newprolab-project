@@ -27,14 +27,6 @@ KAFKA_TOPICS = {
     'location_events.jsonl': os.getenv('LOCATION_EVENTS_TOPIC')
 }
 
-def send_to_kafka(producer, topic, text):
-    for line in text.split('\n'):
-        producer.produce(
-            topic,
-            key=f'{pendulum.now().timestamp()}',
-            value=line,
-        )
-
 
 @dag(
     default_args=DEFAULT_ARGS,
@@ -104,13 +96,17 @@ def yandex_data_download():
             
             topic = KAFKA_TOPICS[filename]
             print(f'Отправляем данные в топик {topic}')
-            send_to_kafka(producer, topic, text)
+            for line in text.split('\n'):
+                producer.produce(
+                    topic,
+                    key=f'{pendulum.now().timestamp()}',
+                    value=line,
+                )
 
             print(f'Записываем информацию об отправленном фале')
             with open(BUCKETS_FILE, 'a') as fo:
-                fo.write(key)
+                fo.write(key + '\n')
             
-            break
 
         print('Все данные отправлены')
         producer.flush()
