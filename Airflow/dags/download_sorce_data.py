@@ -102,6 +102,7 @@ def yandex_data_download():
                     key=f'{pendulum.now().timestamp()}',
                     value=line,
                 )
+            producer.flush()
 
             print(f'Записываем информацию об отправленном фале')
             with open(BUCKETS_FILE, 'a') as fo:
@@ -109,7 +110,6 @@ def yandex_data_download():
             
 
         print('Все данные отправлены')
-        producer.flush()
 
 
     send_to_kafka(check_buckets_file >> get_files_to_download())
