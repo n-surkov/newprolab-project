@@ -19,12 +19,21 @@ URL = "https://" + BUCKET + '.' + STORAGE + '/'
 
 # Маппинг файлов с топиками
 KAFKA_HOST = os.getenv('KAFKA_HOST')
-topics = {
-    'browser_events.jsonl.zip': os.getenv('BROWSER_EVENTS_TOPIC'),
-    'device_events.jsonl.zip': os.getenv('DEVICE_EVENTS_TOPIC'),
-    'geo_events.jsonl.zip': os.getenv('GEO_EVENTS_TOPIC'),
-    'location_events.jsonl.zip': os.getenv('LOCATION_EVENTS_TOPIC')
+KAFKA_PORT = os.getenv('KAFKA_PORT')
+KAFKA_TOPICS = {
+    'browser_events.jsonl': os.getenv('BROWSER_EVENTS_TOPIC'),
+    'device_events.jsonl': os.getenv('DEVICE_EVENTS_TOPIC'),
+    'geo_events.jsonl': os.getenv('GEO_EVENTS_TOPIC'),
+    'location_events.jsonl': os.getenv('LOCATION_EVENTS_TOPIC')
 }
+
+def send_to_kafka(producer, topic, text):
+    for line in text.split('\n'):
+        producer.produce(
+            topic,
+            key=f'{pendulum.now().timestamp()}',
+            value=line,
+        )
 
 
 @dag(
@@ -58,6 +67,7 @@ def yandex_data_download():
 
         new_files = []
         for key in s3.list_objects(Bucket='npl-de13-lab6-data')['Contents']:
+            key = key['Key']
             if key not in downloaded_files:
                 new_files.append(key)
         
@@ -65,17 +75,48 @@ def yandex_data_download():
 
 
     @task
-    def send_to_kafka(files_to_download=List[str]):
+    def send_to_kafka(files_to_download: List[str]):
         import requests
         import io
         from confluent_kafka import Producer
         import socket
-        import datetime
+        import zipfile
 
-        print(files_to_download)
+        conf = {
+            'bootstrap.servers': f'{KAFKA_HOST}:{KAFKA_PORT}',
+            'client.id': socket.gethostname(),
+        }
+
+        producer = Producer(conf)
+
+        # Скачиваем файлы и отправляем в кафку
+        skipped_files = []
+        for key in files_to_download:
+            filename, ext = os.path.splitext(key.split('/')[-1])
+            if ext != '.zip':
+                skipped_files.append(key)
+                continue
+            
+            print(f'Скачиваем файл {key}')
+            response = requests.get(URL + key)
+            with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
+                text = thezip.read(filename).decode('utf-8')
+            
+            topic = KAFKA_TOPICS[filename]
+            print(f'Отправляем данные в топик {topic}')
+            send_to_kafka(producer, topic, text)
+
+            print(f'Записываем информацию об отправленном фале')
+            with open(BUCKETS_FILE, 'a') as fo:
+                fo.write(key)
+            
+            break
+
+        print('Все данные отправлены')
+        producer.flush()
 
 
-    check_buckets_file >> send_to_kafka(get_files_to_download)
+    send_to_kafka(check_buckets_file >> get_files_to_download())
 
 
 actual_dag = yandex_data_download()
