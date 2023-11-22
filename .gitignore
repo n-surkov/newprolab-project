@@ -2,3 +2,4 @@ data/kafka_data/*
 data/postgres_data/*
 data/clickhouse/db/*
 data/share/*
+__pycache__
