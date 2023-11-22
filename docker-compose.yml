@@ -71,7 +71,6 @@ services:
     restart: always
     depends_on:
       - postgres
-      - airflow-initdb
     volumes:
       - airflow_dags:/usr/local/airflow/dags
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
@@ -88,7 +87,6 @@ services:
     restart: always
     depends_on:
       - postgres
-      - airflow-initdb
     volumes:
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - airflow_dags:/usr/local/airflow/dags

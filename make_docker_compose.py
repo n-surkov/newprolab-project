@@ -123,7 +123,6 @@ if __name__=="__main__":
     restart: always
     depends_on:
       - postgres
-      - airflow-initdb
     volumes:
       - airflow_dags:/usr/local/airflow/dags
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
@@ -140,7 +139,6 @@ if __name__=="__main__":
     restart: always
     depends_on:
       - postgres
-      - airflow-initdb
     volumes:
       - ./Airflow/airflow.cfg:/usr/local/airflow/airflow.cfg
       - airflow_dags:/usr/local/airflow/dags
