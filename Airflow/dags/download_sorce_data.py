@@ -65,7 +65,7 @@ def yandex_data_download():
 
 
     @task
-    def send_to_kafka(files_to_download=List[str]):
+    def send_to_kafka(files_to_download: List[str]):
         import requests
         import io
         from confluent_kafka import Producer
@@ -75,7 +75,7 @@ def yandex_data_download():
         print(files_to_download)
 
 
-    check_buckets_file >> send_to_kafka(get_files_to_download)
+    send_to_kafka(check_buckets_file >> get_files_to_download())
 
 
 actual_dag = yandex_data_download()
