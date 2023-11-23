@@ -5,3 +5,4 @@ data/share/*
 __pycache__
 venv
 .idea
+.DS_store
