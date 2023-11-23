@@ -279,7 +279,7 @@ python ./Clickhouse/create_tables.py
 В корневой директории проекта выполняем следующие команды
 
 ```bash
-cp ./data/env-node-db.conf env.conf
+cp ./data/env-airflow.conf env.conf
 mkdir data/postgres_data/db
 python3 make_docker_compose.py
 ```
