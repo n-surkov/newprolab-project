@@ -30,7 +30,7 @@ KAFKA_TOPICS = {
 
 @dag(
     default_args=DEFAULT_ARGS,
-    schedule_interval="0 * * * *",
+    schedule_interval="2 * * * *",
     start_date=pendulum.datetime(2020, 11, 22),
     catchup=False,
 )
