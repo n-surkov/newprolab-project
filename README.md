@@ -292,6 +292,8 @@ docker-compose -f docker-compose.yml up -d
 
 Заходим по адресу 146.185.242.74:8080
 
-Добавляем креденшлы
+Добавляем креденшлы подключения к YCloud (Admin->Variables):
+* `ycloud_access_key_id`
+* `ycloud_secret_access_key`
 
-Запускаем даг
+Запускаем даг `yandex_data_download`
