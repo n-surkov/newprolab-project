@@ -3,20 +3,25 @@
 Финальный проект, суть которого заключается в том, что на основе данных, 
 находящихся в хранилище S3 YandexCloud построить дашборды.
 
+## Данные и инфраструктура
+
+![main-schema.png](./img/main-schema.png)
+
 Для реализации этой задачи была выбрана следующая архитектура:
 
-* Kafka на ноде 2 -- для приёма исходных джисонов
-* Clickhouse на ноде 2 -- для хранения данных. Для каждого типа 
+* **Kafka** на ноде 2 -- для приёма исходных джисонов
+* **Clickhouse** на ноде 2 -- для хранения данных. Для каждого типа 
   данных реализована следующая схема, которую можно собрать с помощью 
   скрипта [create_tables](./Clickhouse/create_tables.py):
   * table_in -- таблица подключения к топику kafka
   * table -- таблица в которой будут храниться данные
   * table_mv -- вьюха, которая переливает данные из table_in в table
-* Airflow на ноде 1 -- аркестрация процессов по переливке данных:
+* **Airflow** на ноде 1 -- аркестрация процессов по переливке данных:
   * [Даг переливки данных](./Airflow/dags/download_sorce_data.py) -- 
   Осуществляет ежечасную выгрузку данных из хранилища S3 в соответствующие 
     топики Kafka
-* Superset на ноде 3 -- отрисовка дашбордов.
+  * Очевидно будет какой-то даг по обработке данных
+* **Superset** на ноде 3 -- отрисовка дашбордов.
     
 Разделить Airflow и данные было решено потому, что кликхаус очень любит кушать 
 память, а выгрузка данных их S3 в Kafka осуществляется так же с использованием 
@@ -224,18 +229,26 @@ docker-compose -f docker-compose.yml up -d
 Так же потребуются библиотеки pandas, numpy и clickhouse-driver.
 
 ```bash
-python ./Clickhouse/create_tables.py
+python3 ./Clickhouse/create_tables.py
 ```
 
 <details>
 <summary>При желании -- записать пробные данные в клик</summary>
 
+* Вариант 1 -- записать данные напрямую
 ```bash
 cat ./data/sample/browser_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into browser_events format JSONEachRow"
 cat ./data/sample/device_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into device_events format JSONEachRow"
 cat ./data/sample/geo_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into geo_events format JSONEachRow"
 cat ./data/sample/location_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into location_events format JSONEachRow"
 ```
+
+* Вариант 2 -- отправить данные через топик кафки
+
+```bash
+python3 Clickhouse/send_examples_to_kafka.py
+```
+
 </details>
 
 
@@ -271,7 +284,7 @@ docker-compose -f docker-compose.yml up -d
 Создаём таблицы
 ```bash
 pip install pandas, numpy, clickhouse-driver
-python ./Clickhouse/create_tables.py
+python3 ./Clickhouse/create_tables.py
 ```
 
 ## Настройка ноды с Airflow (нода 1)
