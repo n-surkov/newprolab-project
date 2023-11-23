@@ -2,6 +2,7 @@ import os
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'env.conf')
 from clickhouse_driver import Client as click_client
 
+
 def parse_parameters(filename='./env.conf'):
     config = dict()
     with open(filename, 'r') as fo:
@@ -21,7 +22,8 @@ def parse_parameters(filename='./env.conf'):
         config['CLICKHOUSE_HOST'] = config['HOST']
     return config
 
-def create_table(client, table_name, columns_types, time_col=None, topic=''):
+
+def create_table(client, table_name, columns_types, order_col='event_timestamp', topic=''):
     client.execute(f"DROP TABLE IF EXISTS {table_name}")
     client.execute(f"DROP TABLE IF EXISTS {table_name}_in")
     client.execute(f"DROP TABLE IF EXISTS {table_name}_mv")
@@ -36,15 +38,17 @@ CREATE TABLE {table_name}
 (
     {dtypes.strip()[:-1]}
 )"""
-    if time_col is not None:
+    if order_col == 'event_timestamp':
         query += f""" ENGINE = MergeTree()
-  PARTITION BY toYYYYMM({time_col})
-  PRIMARY KEY {time_col}
-  ORDER BY {time_col}
+  PARTITION BY toYYYYMM({order_col})
+  PRIMARY KEY {order_col}
+  ORDER BY {order_col}
   SETTINGS index_granularity = 8192;
 """
     else:
-        query += ' ENGINE = Memory;'
+        query += f""" ENGINE = MergeTree()
+  ORDER BY {order_col};
+"""
     print(f"Creating table {table_name}:")
     print(query)
     client.execute(query)
@@ -103,7 +107,7 @@ if __name__=="__main__":
         ('user_custom_id', 'String'),
         ('user_domain_id', 'String'),
     ]
-    create_table(cclient, config['DEVICE_EVENTS_TABLE'], dtypes, topic=config['DEVICE_EVENTS_TOPIC'])
+    create_table(cclient, config['DEVICE_EVENTS_TABLE'], dtypes, 'click_id', topic=config['DEVICE_EVENTS_TOPIC'])
 
     # geo_events
     dtypes = [
@@ -115,7 +119,7 @@ if __name__=="__main__":
         ('geo_region_name', 'String'),
         ('ip_address', 'String'),
     ]
-    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, topic=config['GEO_EVENTS_TOPIC'])
+    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, 'click_id', topic=config['GEO_EVENTS_TOPIC'])
 
     # location_events
     dtypes = [
@@ -129,4 +133,4 @@ if __name__=="__main__":
         ('utm_content', 'String'),
         ('utm_campaign', 'String'),
     ]
-    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, topic=config['LOCATION_EVENTS_TOPIC'])
+    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, 'event_id', topic=config['LOCATION_EVENTS_TOPIC'])
