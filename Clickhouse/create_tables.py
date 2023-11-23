@@ -1,26 +1,8 @@
-import os
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'env.conf')
+"""
+Скрипт отправки тестовых данных в Clickhouse
+"""
 from clickhouse_driver import Client as click_client
-
-
-def parse_parameters(filename='./env.conf'):
-    config = dict()
-    with open(filename, 'r') as fo:
-        for line in fo.readlines():
-            comment_start = line.find('#')
-            if comment_start == -1:
-                line = line.strip()
-            else:
-                line = line[:comment_start].strip()
-            if line != '':
-                key, val = line.split('=')
-                config[key] = val
-    
-    if config['USE_EXTERNAL_KAFKA'] == 'NO':
-        config['KAFKA_HOST'] = config['HOST']
-    if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO':
-        config['CLICKHOUSE_HOST'] = config['HOST']
-    return config
+from read_config import parse_parameters
 
 
 def create_table(client, table_name, columns_types, order_col='event_timestamp', topic=''):
@@ -80,7 +62,12 @@ FROM {table_name}_in;
 
 
 if __name__=="__main__":
-    config = parse_parameters(CONFIG_PATH)
+    config = parse_parameters()
+
+    print(f"Данные будут записываться в кликхаус {config['CLICKHOUSE_HOST']}:{config['CLICKHOUSE_CLIENT_PORT']} в следующие таблицы:")
+    for key, val in config.items():
+        if '_TABLE' in key:
+            print(f'* {val}')
 
     cclient = click_client(host=config['CLICKHOUSE_HOST'], port=config['CLICKHOUSE_CLIENT_PORT'], settings={'use_numpy': True})
 
