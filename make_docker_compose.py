@@ -1,32 +1,25 @@
 import os
+from Clickhouse.read_config import parse_parameters
 PROJECT_PATH = os.path.join(os.path.dirname(__file__))
 DOCKER_COMPOSE_PATH = os.path.join(PROJECT_PATH, 'docker-compose.yml')
 ENV_PATH = os.path.join(PROJECT_PATH, 'env.conf')
 AIRFLOW_ENV_PATH = os.path.join(PROJECT_PATH, 'Airflow', 'airflow-variables.env')
 
-def parse_parameters(filename=ENV_PATH):
-    config = dict()
-    with open(filename, 'r') as fo:
-        for line in fo.readlines():
-            comment_start = line.find('#')
-            if comment_start == -1:
-                line = line.strip()
-            else:
-                line = line[:comment_start].strip()
-            if line != '':
-                key, val = line.split('=')
-                config[key] = val
-    
-    if config['USE_EXTERNAL_KAFKA'] == 'NO':
-        config['KAFKA_HOST'] = config['HOST']
-    if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO':
-        config['CLICKHOUSE_HOST'] = config['HOST']
-    return config
 
 if __name__=="__main__":
     # Парсим параметры
-    config = parse_parameters()
-    print(config)
+    config = parse_parameters(ENV_PATH)
+
+    print('В docker-compose будут включены следующие сервисы:\n')
+    if config['USE_EXTERNAL_KAFKA'] == 'NO':
+        print(f"Кафка будет находиться на порту: {config['KAFKA_PORT']} и хранить данные в директории {config['KAFKA_DATA']}\n")
+    if config['USE_EXTERNAL_CLICKHOUSE'] == 'NO':
+        print(f"Клик будет находиться на порту: {config['CLICKHOUSE_CLIENT_PORT']} и хранить данные в директории {config['CLICKHOUSE_DATA']}\n")
+    if config['USE_EXTERNAL_AIRFLOW'] == 'NO':
+        print(f"Airflow будет находиться на порту: {config['AIRFLOW_WEBSERVER_PORT']} и хранить PG по порту 5432")
+        print(f"Данные PG будут находиться в директории {config['AIRFLOW_DATABASE']}")
+        print(f"Даги Airflow будет брать из директории {config['AIRFLOW_DAGS']}")
+        print(f"Вести учёт скачанных файлов Airflow будет в файле {config['AIRFLOW_SHARE']}/downloaded_buckets.txt\n")
 
     # Собираем docker-compose.yml
     kafka_service = f"""
