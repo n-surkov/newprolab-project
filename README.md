@@ -111,7 +111,7 @@
 ```
 </details>
 
-## Запуск докеров
+## Общая инструкция запуска докеров
 
 ### 1. Настройка конфигурационного файла
 
@@ -251,3 +251,47 @@ $ docker-compose exec airflow-webserver bash
 ```bash
 airflow users create -u admin -f Ad -l Min -r Admin -e admin@adm.in
 ```
+
+## Настройка ноды с БД (нода 2)
+
+В корневой директории проекта выполняем следующие команды
+
+```bash
+cp ./data/env-node-db.conf env.conf
+sudo chown -R 1001:1001 data/kafka_data
+python3 make_docker_compose.py
+```
+
+Запускаем докеры
+
+```bash
+docker-compose -f docker-compose.yml up -d
+```
+
+Создаём таблицы
+```bash
+pip install pandas, numpy, clickhouse-driver
+python ./Clickhouse/create_tables.py
+```
+
+## Настройка ноды с Airflow (нода 1)
+
+В корневой директории проекта выполняем следующие команды
+
+```bash
+cp ./data/env-node-db.conf env.conf
+mkdir data/postgres_data/db
+python3 make_docker_compose.py
+```
+
+Запускаем докеры
+
+```bash
+docker-compose -f docker-compose.yml up -d
+```
+
+Заходим по адресу 146.185.242.74:8080
+
+Добавляем креденшлы
+
+Запускаем даг
