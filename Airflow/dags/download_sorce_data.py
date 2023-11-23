@@ -46,7 +46,7 @@ def yandex_data_download():
 
         # Загружаем список уже обработанных файлов
         with open(BUCKETS_FILE, 'r') as fo:
-            downloaded_files = list(fo.readlines())
+            downloaded_files = fo.read().split('\n')
 
         # Получаем список файлов из хранилища
         session = boto3.Session(
