@@ -3,3 +3,5 @@ data/postgres_data/*
 data/clickhouse/db/*
 data/share/*
 __pycache__
+venv
+.idea
