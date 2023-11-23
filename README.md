@@ -154,34 +154,39 @@
 * `LOCATION_EVENTS_TABLE`: название таблицы для данных location_events.
 * `LOCATION_EVENTS_TOPIC`: название топика кафки для данных location_events.
 
+### 2. Сборка docker-compose.yml
 
-## Запуск докеров
+После заполнения конфигурационного файла нужно запустить скрипт сборки конфигурации докеров.
 
-0. Настраиваем конфигурацию
+```bash
+python3 make_docker_compose.py
+```
 
-* правим конфигурационный файл [env.conf](./env.conf)
-* запускаем скрипт сбора docker-compose.yml ```python3 make_docker_compose.py```
+Скрипт обновит файлы с учетом заданных параметров в предыдущем пункте:
+* [docker-compose.yml](./docker-compose.yml)
+* [airflow-variables.env](./Airflow/airflow-variables.env)
 
-Параметры конфигурационного файла:
 
+### 3. Подготовка к запуску
 
-1. Перед запуском нужно раздать права на директории
-
-Постгрес особенный, он не переваривает непустые директории
+Если параметр `AIRFLOW_DATABASE` не менялся, то нужно создать соответствующую директорию.
 
 ```bash
 mkdir data/postgres_data/db
 ```
 
-Кафка особенная, ей почему-то нужны расширенные права на директорию
+А также раздать права на директорию, к которой будет примонтирована БД кафки
 
 ```bash
 sudo chown -R 1001:1001 data/kafka_data
 ```
 
-2. Затем запускаем сами сервисы
+### 4. Запуск контейнеров
 
-Если уже были попытки запустить сервисы из других директорий, то лучше поудалять собранные ранее контейнеры с томами:
+<details>
+<summary>Формула удаления докер-образов с аналогичными именами контейнеров</summary>
+
+Перед запуском убедитесь, что вы удаляете именно нужные контейнеры
 
 ```bash
 docker container remove airflow-scheduler
@@ -195,8 +200,7 @@ docker volume rm newprolab-project_clickhouse_db
 docker volume rm newprolab-project_airflow_postgres_db
 docker volume rm newprolab-project_airflow_dags
 ```
-
-Сам запуск докеров
+</details>
 
 ```bash
 docker-compose -f docker-compose.yml up
@@ -213,7 +217,29 @@ docker-compose -f docker-compose.yml up -d
 
 В противном случае база airflow будет перезатираться при каждом запуске.
 
-4. Теперь нужно создать пользователя в Airflow:
+### 5. Создание таблиц в клике
+
+Скрипт создания таблиц так же требует корректно заполненного [конфигурационного файла](./env.conf).
+
+Так же потребуются библиотеки pandas, numpy и clickhouse-driver.
+
+```bash
+python ./Clickhouse/create_tables.py
+```
+
+<details>
+<summary>При желании -- записать пробные данные в клик</summary>
+
+```bash
+cat ./data/sample/browser_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into browser_events format JSONEachRow"
+cat ./data/sample/device_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into device_events format JSONEachRow"
+cat ./data/sample/geo_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into geo_events format JSONEachRow"
+cat ./data/sample/location_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into location_events format JSONEachRow"
+```
+</details>
+
+
+### 6. Создание пользователя Airflow
 
 **!!!** По дефолту создаётся пользователь airflow-airflow, но это несекьюрно, поэтому его надо удалить и создать нового.
 
@@ -225,19 +251,3 @@ $ docker-compose exec airflow-webserver bash
 ```bash
 airflow users create -u admin -f Ad -l Min -r Admin -e admin@adm.in
 ```
-
-5. Создаём в клике нужные таблицы
-
-```bash
-python ./Clickhouse/create_tables.py
-```
-
-6. Записываем пробные данные (опционально)
-
-```bash
-cat ./data/sample/browser_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into browser_events format JSONEachRow"
-cat ./data/sample/device_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into device_events format JSONEachRow"
-cat ./data/sample/geo_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into geo_events format JSONEachRow"
-cat ./data/sample/location_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into location_events format JSONEachRow"
-```
-
