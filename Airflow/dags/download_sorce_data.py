@@ -123,7 +123,81 @@ def yandex_data_download():
         print('Все данные отправлены')
 
 
-    send_to_kafka(check_buckets_file >> get_files_to_download())
+    @task
+    def join_data():
+        from clickhouse_driver import Client
+
+        client = Client(host='185.130.113.27', port='19000', settings={'use_numpy': True})
+
+        filt = f"batch_time > (SELECT MAX(batch_time) FROM {os.getenv('UNION_TABLE')})"
+        browser_query = f"""
+    SELECT *
+    FROM {os.getenv('BROWSER_EVENTS_TABLE')}
+    WHERE {filt}
+        """
+        device_query = f"""
+    SELECT DISTINCT *
+    FROM {os.getenv('DEVICE_EVENTS_TABLE')}
+    WHERE {filt}
+        """
+        geo_query = f"""
+    SELECT DISTINCT *
+    FROM {os.getenv('GEO_EVENTS_TABLE')}
+    WHERE {filt}
+        """
+        location_query = f"""
+    SELECT *
+    FROM {os.getenv('LOCATION_EVENTS_TABLE')}
+    WHERE {filt}
+        """
+
+        query = f"""
+SELECT 
+    events.event_id AS event_id,
+    events.event_timestamp AS event_timestamp,
+    events.event_type AS event_type,
+    events.click_id AS click_id,
+    events.browser_name AS browser_name,
+    events.browser_user_agent AS browser_user_agent,
+    events.browser_language AS browser_language,
+    events.batch_time AS batch_time,
+    
+    devices.os AS os,
+    devices.os_name AS os_name,
+    devices.os_timezone AS os_timezone,
+    devices.device_type AS device_type,
+    devices.device_is_mobile AS device_is_mobile,
+    devices.user_custom_id AS user_custom_id,
+    devices.user_domain_id AS user_domain_id,
+    
+    geo.geo_latitude AS geo_latitude,
+    geo.geo_longitude AS geo_longitude,
+    geo.geo_country AS geo_country,
+    geo.geo_timezone AS geo_timezone,
+    geo.geo_region_name AS geo_region_name,
+    geo.ip_address AS ip_address,
+    
+    location.page_url AS page_url,
+    location.page_url_path AS page_url_path,
+    location.referer_url AS referer_url,
+    location.referer_medium AS referer_medium,
+    location.utm_medium AS utm_medium,
+    location.utm_source AS utm_source,
+    location.utm_content AS utm_content,
+    location.utm_campaign AS utm_campaign
+    
+FROM ({browser_query}) events
+LEFT JOIN ({device_query}) devices ON events.click_id=devices.click_id AND events.batch_time=devices.batch_time
+LEFT JOIN ({geo_query}) geo ON events.click_id=geo.click_id AND events.batch_time=geo.batch_time
+LEFT JOIN ({location_query}) location ON events.event_id=location.event_id AND events.batch_time=location.batch_time
+"""
+        insert_query = f"INSERT INTO {os.getenv('UNION_TABLE')} {query}"
+        print(insert_query)
+
+        client.execute(insert_query)
+
+
+    send_to_kafka(check_buckets_file >> get_files_to_download()) >> join_data()
 
 
 actual_dag = yandex_data_download()

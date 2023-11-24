@@ -3,6 +3,9 @@
 """
 from clickhouse_driver import Client as click_client
 from read_config import parse_parameters
+import time
+
+WAITING_TIME = 5
 
 
 def create_table(client, table_name, columns_types, topic=''):
@@ -59,15 +62,21 @@ FROM {table_name}_in;
 if __name__=="__main__":
     config = parse_parameters()
 
-    print(f"Данные будут записываться в кликхаус {config['CLICKHOUSE_HOST']}:{config['CLICKHOUSE_CLIENT_PORT']} в следующие таблицы:")
+    print(f"В БД Clickhouse {config['CLICKHOUSE_HOST']}:{config['CLICKHOUSE_CLIENT_PORT']} будут созданы/пересозданы следующие таблицы:")
     for key, val in config.items():
         if '_TABLE' in key:
             print(f'* {val}')
 
+
+    print(f'Есть {WAITING_TIME} секунд на раздумье...')
+    for i in range(WAITING_TIME):
+        print(f'{i + 1}...')
+        time.sleep(1)
+
     cclient = click_client(host=config['CLICKHOUSE_HOST'], port=config['CLICKHOUSE_CLIENT_PORT'], settings={'use_numpy': True})
 
     # browser_events
-    dtypes = [
+    browser_dtypes = [
         ('event_id', 'String'),
         ('event_timestamp', 'DateTime64'),
         ('event_type', 'String'),
@@ -77,10 +86,10 @@ if __name__=="__main__":
         ('browser_language', 'String'),
         ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['BROWSER_EVENTS_TABLE'], dtypes, config['BROWSER_EVENTS_TOPIC'])
+    create_table(cclient, config['BROWSER_EVENTS_TABLE'], browser_dtypes, config['BROWSER_EVENTS_TOPIC'])
 
     # device_events
-    dtypes = [
+    device_dtypes = [
         ('click_id', 'String'),
         ('os', 'String'),
         ('os_name', 'String'),
@@ -91,10 +100,10 @@ if __name__=="__main__":
         ('user_domain_id', 'String'),
         ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['DEVICE_EVENTS_TABLE'], dtypes, topic=config['DEVICE_EVENTS_TOPIC'])
+    create_table(cclient, config['DEVICE_EVENTS_TABLE'], device_dtypes, topic=config['DEVICE_EVENTS_TOPIC'])
 
     # geo_events
-    dtypes = [
+    geo_dtypes = [
         ('click_id', 'String'),
         ('geo_latitude', 'Float32'),
         ('geo_longitude', 'Float32'),
@@ -104,10 +113,10 @@ if __name__=="__main__":
         ('ip_address', 'String'),
         ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, topic=config['GEO_EVENTS_TOPIC'])
+    create_table(cclient, config['GEO_EVENTS_TABLE'], geo_dtypes, topic=config['GEO_EVENTS_TOPIC'])
 
     # location_events
-    dtypes = [
+    location_dtypes = [
         ('event_id', 'String'),
         ('page_url', 'String'),
         ('page_url_path', 'String'),
@@ -119,4 +128,15 @@ if __name__=="__main__":
         ('utm_campaign', 'String'),
         ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, topic=config['LOCATION_EVENTS_TOPIC'])
+    create_table(cclient, config['LOCATION_EVENTS_TABLE'], location_dtypes, topic=config['LOCATION_EVENTS_TOPIC'])
+
+    # Суммарная таблица событий
+    keys = []
+    agg_dtypes = []
+    for k, v in browser_dtypes + device_dtypes + geo_dtypes + location_dtypes:
+        if k in keys:
+            continue
+        keys.append(k)
+        agg_dtypes.append((k, v))
+    
+    create_table(cclient, config['UNION_TABLE'], agg_dtypes)
