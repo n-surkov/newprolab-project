@@ -64,7 +64,7 @@ def yandex_data_download():
             if key not in downloaded_files:
                 new_files.append(key)
         
-        return new_files[:100]
+        return new_files
 
 
     @task
