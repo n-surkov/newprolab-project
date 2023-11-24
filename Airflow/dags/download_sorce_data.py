@@ -101,7 +101,10 @@ def yandex_data_download():
             topic = KAFKA_TOPICS[filename]
             print(f'Отправляем данные в топик {topic}')
             for line in text.split('\n'):
-                js = json.loads(line)
+                try:
+                     js = json.loads(line)
+                except:
+                    continue
                 js.update(bucket_time)
                 message = json.dumps(js).encode('utf-8')
 
