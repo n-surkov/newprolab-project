@@ -6,6 +6,7 @@ import os
 from confluent_kafka import Producer
 import socket
 import datetime
+import json
 from read_config import parse_parameters
 
 DATA_SAMPLE_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'data', 'sample')
@@ -20,15 +21,18 @@ TOPICS = {
 
 def send_sample(producer, topic, filename):
     filepath = os.path.join(DATA_SAMPLE_FOLDER, filename)
+    batch_time = {"batch_time": CURRENT_TIME}
 
     with open(filepath, 'r') as fo:
         for line in fo.readlines():
-            data = line.strip()
-            data = data[:-1] + f', "batch_time": "{CURRENT_TIME}"}}'
+            js = json.loads(line)
+            js.update(batch_time)
+            message = json.dumps(js).encode('utf-8')
+            
             producer.produce(
                 topic,
                 key=f'{datetime.datetime.now().timestamp()}',
-                value=data,
+                value=message,
             )
 
 
