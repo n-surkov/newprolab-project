@@ -9,6 +9,7 @@ import datetime
 from read_config import parse_parameters
 
 DATA_SAMPLE_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'data', 'sample')
+CURRENT_TIME = datetime.datetime.now().strftime('%Y-%m-%d %H:00:00')
 
 TOPICS = {
     'browser_events.jsonl': 'BROWSER_EVENTS_TOPIC',
@@ -19,12 +20,15 @@ TOPICS = {
 
 def send_sample(producer, topic, filename):
     filepath = os.path.join(DATA_SAMPLE_FOLDER, filename)
+
     with open(filepath, 'r') as fo:
         for line in fo.readlines():
+            data = line.strip()
+            data = data[:-1] + f', "batch_time": "{CURRENT_TIME}"}}'
             producer.produce(
                 topic,
                 key=f'{datetime.datetime.now().timestamp()}',
-                value=line,
+                value=data,
             )
 
 

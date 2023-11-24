@@ -5,7 +5,7 @@ from clickhouse_driver import Client as click_client
 from read_config import parse_parameters
 
 
-def create_table(client, table_name, columns_types, order_col='event_timestamp', topic=''):
+def create_table(client, table_name, columns_types, topic=''):
     client.execute(f"DROP TABLE IF EXISTS {table_name}")
     client.execute(f"DROP TABLE IF EXISTS {table_name}_in")
     client.execute(f"DROP TABLE IF EXISTS {table_name}_mv")
@@ -19,18 +19,13 @@ def create_table(client, table_name, columns_types, order_col='event_timestamp',
 CREATE TABLE {table_name}
 (
     {dtypes.strip()[:-1]}
-)"""
-    if order_col == 'event_timestamp':
-        query += f""" ENGINE = MergeTree()
-  PARTITION BY toYYYYMM({order_col})
-  PRIMARY KEY {order_col}
-  ORDER BY {order_col}
+) ENGINE = MergeTree()
+  PARTITION BY toYYYYMMDD(batch_time)
+  PRIMARY KEY batch_time
+  ORDER BY batch_time
   SETTINGS index_granularity = 8192;
 """
-    else:
-        query += f""" ENGINE = MergeTree()
-  ORDER BY {order_col};
-"""
+
     print(f"Creating table {table_name}:")
     print(query)
     client.execute(query)
@@ -80,8 +75,9 @@ if __name__=="__main__":
         ('browser_name', 'String'),
         ('browser_user_agent', 'String'),
         ('browser_language', 'String'),
+        ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['BROWSER_EVENTS_TABLE'], dtypes, 'event_timestamp', config['BROWSER_EVENTS_TOPIC'])
+    create_table(cclient, config['BROWSER_EVENTS_TABLE'], dtypes, config['BROWSER_EVENTS_TOPIC'])
 
     # device_events
     dtypes = [
@@ -93,8 +89,9 @@ if __name__=="__main__":
         ('device_is_mobile', 'Boolean'),
         ('user_custom_id', 'String'),
         ('user_domain_id', 'String'),
+        ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['DEVICE_EVENTS_TABLE'], dtypes, 'click_id', topic=config['DEVICE_EVENTS_TOPIC'])
+    create_table(cclient, config['DEVICE_EVENTS_TABLE'], dtypes, topic=config['DEVICE_EVENTS_TOPIC'])
 
     # geo_events
     dtypes = [
@@ -105,8 +102,9 @@ if __name__=="__main__":
         ('geo_timezone', 'String'),
         ('geo_region_name', 'String'),
         ('ip_address', 'String'),
+        ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, 'click_id', topic=config['GEO_EVENTS_TOPIC'])
+    create_table(cclient, config['GEO_EVENTS_TABLE'], dtypes, topic=config['GEO_EVENTS_TOPIC'])
 
     # location_events
     dtypes = [
@@ -119,5 +117,6 @@ if __name__=="__main__":
         ('utm_source', 'String'),
         ('utm_content', 'String'),
         ('utm_campaign', 'String'),
+        ('batch_time', 'DateTime'),
     ]
-    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, 'event_id', topic=config['LOCATION_EVENTS_TOPIC'])
+    create_table(cclient, config['LOCATION_EVENTS_TABLE'], dtypes, topic=config['LOCATION_EVENTS_TOPIC'])

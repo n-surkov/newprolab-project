@@ -63,7 +63,7 @@ def yandex_data_download():
             if key not in downloaded_files:
                 new_files.append(key)
         
-        return new_files
+        return new_files[:100]
 
 
     @task
@@ -88,6 +88,9 @@ def yandex_data_download():
             if ext != '.zip':
                 skipped_files.append(key)
                 continue
+
+            year, month, day, hour, _ = key.split('/')
+            bucket_time = f"{year[-4:]}-{month[-2:]}-{day[-2:]} {hour[-2:]}:00:00"
             
             print(f'Скачиваем файл {key}')
             response = requests.get(URL + key)
@@ -97,10 +100,11 @@ def yandex_data_download():
             topic = KAFKA_TOPICS[filename]
             print(f'Отправляем данные в топик {topic}')
             for line in text.split('\n'):
+                data = line[:-1] + f', "batch_time": "{bucket_time}"}}'
                 producer.produce(
                     topic,
                     key=f'{pendulum.now().timestamp()}',
-                    value=line,
+                    value=data,
                 )
             producer.flush()
 
