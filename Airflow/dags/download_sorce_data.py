@@ -100,7 +100,7 @@ def yandex_data_download():
             topic = KAFKA_TOPICS[filename]
             print(f'Отправляем данные в топик {topic}')
             for line in text.split('\n'):
-                data = line[:-1] + f', "batch_time": "{bucket_time}"}}'
+                data = line[:-1] + f',"batch_time":"{bucket_time}"}}'
                 producer.produce(
                     topic,
                     key=f'{pendulum.now().timestamp()}',
