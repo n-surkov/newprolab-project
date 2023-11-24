@@ -1,5 +1,6 @@
 import pendulum
 import os
+import json
 from typing import List
 from airflow.models import Variable
 from airflow.decorators import dag, task
@@ -90,7 +91,7 @@ def yandex_data_download():
                 continue
 
             year, month, day, hour, _ = key.split('/')
-            bucket_time = f"{year[-4:]}-{month[-2:]}-{day[-2:]} {hour[-2:]}:00:00"
+            bucket_time = {'batch_time': f"{year[-4:]}-{month[-2:]}-{day[-2:]} {hour[-2:]}:00:00"}
             
             print(f'Скачиваем файл {key}')
             response = requests.get(URL + key)
@@ -100,13 +101,14 @@ def yandex_data_download():
             topic = KAFKA_TOPICS[filename]
             print(f'Отправляем данные в топик {topic}')
             for line in text.split('\n'):
-                if not line:
-                    continue
-                data = line[:-1] + f',"batch_time":"{bucket_time}"}}'
+                js = json.loads(line)
+                js.update(bucket_time)
+                message = json.dumps(js).encode('utf-8')
+
                 producer.produce(
                     topic,
                     key=f'{pendulum.now().timestamp()}',
-                    value=data,
+                    value=message,
                 )
             producer.flush()
 
