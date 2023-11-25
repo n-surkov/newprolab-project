@@ -13,14 +13,17 @@
 * **Clickhouse** на ноде 2 -- для хранения данных. Для каждого типа 
   данных реализована следующая схема, которую можно собрать с помощью 
   скрипта [create_tables](./Clickhouse/create_tables.py):
-  * table_in -- таблица подключения к топику kafka
-  * table -- таблица в которой будут храниться данные
-  * table_mv -- вьюха, которая переливает данные из table_in в table
-* **Airflow** на ноде 1 -- аркестрация процессов по переливке данных:
-  * [Даг переливки данных](./Airflow/dags/download_sorce_data.py) -- 
-  Осуществляет ежечасную выгрузку данных из хранилища S3 в соответствующие 
-    топики Kafka
-  * Очевидно будет какой-то даг по обработке данных
+  * `table_in` -- таблица подключения к топику kafka `ENGINE = Kafka`, `kafka_format = 'JSONEachRow'`
+  * `table` -- таблица в которой будут храниться данные `ENGINE = MergeTree()`, `ORDER BY batch_time`
+  * `table_mv` -- вьюха, которая переливает данные из table_in в table `MATERIALIZED VIEW`
+  * `clickstream_raw` -- итоговая таблица со всем кликстримом `ENGINE = MergeTree()`, `ORDER BY batch_time`
+* **Airflow** на ноде 1 -- аркестрация процессов по переливке данных. 
+  [Даг переливки данных](./Airflow/dags/download_sorce_data.py) 
+  запускается каждый час и выполняет следующие действия:
+  * `check_buckets_file` -- проверяет, существует ли файл `downloaded_buckets.txt` в примонтированной директории
+  * `get_files_to_download` -- Выкачивает список актуальных бакетов из S3 хранилища и оставляет только те, которые ещё не были скачаны.
+  * `send_to_kafka` -- Скачивает каждый бакет, разархивирует его, отправляет данные в кафку, добавляя к данным поле "время бакета"
+  * `join_data` -- обогащает таблицу `clickstream_raw` данными из сырых таблиц путём джойна их между собой
 * **Superset** на ноде 3 -- отрисовка дашбордов.
     
 Разделить Airflow и данные было решено потому, что кликхаус очень любит кушать 
@@ -59,6 +62,19 @@
 }
 ```
 
+Для хранения в Clickhouse выбран следующий формат полей
+
+```python
+('event_id', 'String'),
+('event_timestamp', 'DateTime64'),
+('event_type', 'String'),
+('click_id', 'String'),
+('browser_name', 'String'),
+('browser_user_agent', 'String'),
+('browser_language', 'String'),
+('batch_time', 'DateTime'),
+```
+
 ### Информация об устройстве
 
 Отсюда можно собрать данные об операционной системе и типе устройства. Склеить их с остальными данными можно по
@@ -78,6 +94,20 @@
 }
 ```
 
+Для хранения в Clickhouse выбран следующий формат полей
+
+```python
+('click_id', 'String'),
+('os', 'String'),
+('os_name', 'String'),
+('os_timezone', 'String'),
+('device_type', 'String'),
+('device_is_mobile', 'Boolean'),
+('user_custom_id', 'String'),
+('user_domain_id', 'String'),
+('batch_time', 'DateTime'),
+```
+
 ### Данные о геопозиции
 
 Вам известно, что тут вам в базовом наборе дали только неточные данные, которые уже все события привязывают к
@@ -93,6 +123,19 @@
   "geo_region_name": "Wesseling",
   "ip_address": "206.227.30.186"
 }
+```
+
+Для хранения в Clickhouse выбран следующий формат полей
+
+```python
+('click_id', 'String'),
+('geo_latitude', 'Float32'),
+('geo_longitude', 'Float32'),
+('geo_country', 'String'),
+('geo_timezone', 'String'),
+('geo_region_name', 'String'),
+('ip_address', 'String'),
+('batch_time', 'DateTime'),
 ```
 
 ### Информация о нахождении на сайте и откуда пользователь пришёл
@@ -114,6 +157,22 @@
   "utm_campaign": "campaign_2"
 }
 ```
+
+Для хранения в Clickhouse выбран следующий формат полей
+
+```python
+('event_id', 'String'),
+('page_url', 'String'),
+('page_url_path', 'String'),
+('referer_url', 'String'),
+('referer_medium', 'String'),
+('utm_medium', 'String'),
+('utm_source', 'String'),
+('utm_content', 'String'),
+('utm_campaign', 'String'),
+('batch_time', 'DateTime'),
+```
+
 </details>
 
 ## Общая инструкция запуска докеров
@@ -158,6 +217,7 @@
 * `GEO_EVENTS_TOPIC`: название топика кафки для данных geo_events.
 * `LOCATION_EVENTS_TABLE`: название таблицы для данных location_events.
 * `LOCATION_EVENTS_TOPIC`: название топика кафки для данных location_events.
+* `UNION_TABLE`: название таблицы для данных объединённых данных кликстрима.
 
 ### 2. Сборка docker-compose.yml
 
@@ -235,16 +295,6 @@ python3 ./Clickhouse/create_tables.py
 <details>
 <summary>При желании -- записать пробные данные в клик</summary>
 
-* Вариант 1 -- записать данные напрямую
-```bash
-cat ./data/sample/browser_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into browser_events format JSONEachRow"
-cat ./data/sample/device_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into device_events format JSONEachRow"
-cat ./data/sample/geo_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into geo_events format JSONEachRow"
-cat ./data/sample/location_events.jsonl | clickhouse-client --port 19000 --multiline --query="INSERT into location_events format JSONEachRow"
-```
-
-* Вариант 2 -- отправить данные через топик кафки
-
 ```bash
 python3 Clickhouse/send_examples_to_kafka.py
 ```
@@ -286,6 +336,20 @@ docker-compose -f docker-compose.yml up -d
 pip install pandas, numpy, clickhouse-driver
 python3 ./Clickhouse/create_tables.py
 ```
+
+<details>
+<summary>Создаём топики с небольшим retention в 5 минут. Название топиков указано по умолчанию.</summary>
+
+В целом, при отсутствии топика для продюсера, он создастся автоматически, но с более блительным retention.
+
+```bash
+kafka-topics.sh --create --topic browser_events_in --bootstrap-server 185.130.113.27:19092 --config retention.ms=300000
+kafka-topics.sh --create --topic device_events_in --bootstrap-server 185.130.113.27:19092 --config retention.ms=300000
+kafka-topics.sh --create --topic geo_events_in --bootstrap-server 185.130.113.27:19092 --config retention.ms=300000
+kafka-topics.sh --create --topic location_events_in --bootstrap-server 185.130.113.27:19092 --config retention.ms=300000
+```
+
+</details>
 
 ## Настройка ноды с Airflow (нода 1)
 
