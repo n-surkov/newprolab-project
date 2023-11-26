@@ -126,6 +126,10 @@ def yandex_data_download():
     @task
     def join_data():
         from clickhouse_driver import Client
+        import time
+
+        # Ждём 10 секунд, чтобы все данные точно долетели
+        time.sleep(10)
 
         client = Client(host='185.130.113.27', port='19000', settings={'use_numpy': True})
 
