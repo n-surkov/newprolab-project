@@ -44,6 +44,7 @@ def yandex_data_download():
     @task
     def get_files_to_download():
         import boto3
+        import datetime
 
         # Загружаем список уже обработанных файлов
         with open(BUCKETS_FILE, 'r') as fo:
@@ -64,7 +65,42 @@ def yandex_data_download():
             if key not in downloaded_files:
                 new_files.append(key)
         
-        return new_files
+        # Добавляем призрачные даты
+        # Ищем максимальные даты
+        topics = {
+            'browser_events.jsonl.zip': '2023-01-01 00:00:00', 
+            'device_events.jsonl.zip': '2023-01-01 00:00:00', 
+            'geo_events.jsonl.zip': '2023-01-01 00:00:00', 
+            'location_events.jsonl.zip': '2023-01-01 00:00:00'
+        }
+
+        for key in new_files + downloaded_files:
+            _, ext = os.path.splitext(key)
+            if ext != '.zip':
+                continue
+            year, month, day, hour, data_file = key.split('/')
+            bucket_time = f"{year[-4:]}-{month[-2:]}-{day[-2:]} {hour[-2:]}:00:00"
+            if topics[data_file] < bucket_time:
+                topics[data_file] = bucket_time
+                
+        # Переводим в даты
+        for key, val in topics.items():
+            topics[key] = datetime.datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
+
+        # Генерируем дополнительные топики
+        add_files = []
+        now = datetime.datetime.now()
+        for _ in range(1000):
+            for key, val in topics.items():
+                new_time = val + datetime.timedelta(hours=1)
+                if new_time > now:
+                    continue
+                filename = new_time.strftime(f'year=%Y/month=%m/day=%d/hour=%H/{key}')
+                if filename not in new_files:
+                    add_files.append(filename)
+                topics[key] = new_time
+        
+        return new_files + add_files
 
 
     @task
@@ -95,6 +131,8 @@ def yandex_data_download():
             
             print(f'Скачиваем файл {key}')
             response = requests.get(URL + key)
+            if response.status_code != 200:
+                continue
             with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
                 text = thezip.read(filename).decode('utf-8')
             
