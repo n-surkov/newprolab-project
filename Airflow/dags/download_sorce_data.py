@@ -89,7 +89,7 @@ def yandex_data_download():
 
         # Генерируем дополнительные топики
         add_files = []
-        now = datetime.datetime.now()
+        now = datetime.datetime.now() + datetime.timedelta(hours=3)
         for _ in range(1000):
             for key, val in topics.items():
                 new_time = val + datetime.timedelta(hours=1)
